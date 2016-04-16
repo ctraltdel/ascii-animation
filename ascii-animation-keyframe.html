@@ -1,0 +1,59 @@
+<link rel="import" href="../polymer/polymer.html">
+<!--
+Element containing one animation frame. To be used inside an <ascii-animation> tag.
+
+Example: 
+  <ascii-animation duration="1" autoplay>
+      <ascii-animation-keyframe name="smiley" selector="0">:)</ascii-animation-keyframe>
+      <ascii-animation-keyframe name="meh" selector="50">:|</ascii-animation-keyframe>
+      <ascii-animation-keyframe name="frownie" selector="100">:(</ascii-animation-keyframe>
+    </ascii-animation>
+
+Example:
+
+      <ascii-animation-keyframe name="cow" selector="30">
+         (__)
+         (oo)
+  /-------\/
+ / |     ||
+*  ||----||
+   ~~    ~~</ascii-animation-keyframe>
+-->
+
+<dom-module>
+  <template>
+    <content></content>
+  </template>
+  <script>
+    Polymer({
+      is: 'ascii-animation-keyframe',
+      properties: {
+        /**
+         * `selector` is the keyframe position from 0-100% of the animation. A frame will display until the next keyframe.
+         */
+        selector: {
+          type: Number
+        },
+        /**
+         * `display` is the ascii text used in this frame. Initially set from content but can be specified from script by setting the `display` property explicitly.
+         */
+        display: {
+          type: String,
+          value: function () {          
+            var txt = Polymer.dom(this).textContent;
+            if (txt.indexOf('\n') == 0) {
+              return txt.slice(1);
+            }
+            return txt;
+          }
+        },
+        /**
+         * You can set the `name` of your keyframe if it helps you organize things.
+         */
+        name: {
+          type: String,
+        }
+      },
+    });
+  </script>
+</dom-module>

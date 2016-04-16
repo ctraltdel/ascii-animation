@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+
+  <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+  <script src="../../web-component-tester/browser.js"></script>
+
+  <!-- Step 1: import the element to test -->
+  <link rel="import" href="../ascii-animation-keyframe.html">
+</head>
+
+<body>
+
+  <!-- You can use the document as a place to set up your fixtures. -->
+  <test-fixture id="ascii-animation-keyframe-fixture">
+    <template>
+      <ascii-animation-keyframe name="cow" selector="30">
+         (__)
+         (oo)
+  /-------\/
+ / |     ||
+*  ||----||
+   ~~    ~~</ascii-animation-keyframe>
+    </template>
+  </test-fixture>
+  <script>
+    suite('<ascii-animation-keyframe>', function() {
+      var myEl;
+      
+      setup(function() {
+        myEl = fixture('ascii-animation-keyframe-fixture');
+      });
+      
+      test('defines the "name" property', function() {
+        assert.equal(myEl.name, 'cow');
+      });
+      
+      test('defines the "selector" property', function() {
+        assert.equal(myEl.selector, 30);
+      });
+      
+      test('confirms the display property loads from content', function() {
+        assert.equal(myEl.display,'         (__)\n         (oo)\n  /-------\\/\n / |     ||\n*  ||----||\n   ~~    ~~');
+      });
+      
+    });
+  
+  </script>
+</body>
+
+</html>
