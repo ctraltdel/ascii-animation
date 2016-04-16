@@ -35,10 +35,20 @@ Example:
         box-sizing: border-box;
       }
     </style>
-    <content></content>
+    <div id="ascii-view">
+        <div id="ascii-content">[[_renderedText]]</div>
+    </div>
+    <div id="keyframe-content" hidden>
+      <content></content>
+    </div>
   </template>
 
   <script>
+        /* @typedef {Object} Keyframe
+         *   @property {number} selector - 0 to 100 percentage of animation where keyframe is shown.
+         *   @property {string} name - name of frame for organizational reasons
+         *   @property {stirng} display - ascii text to be displayed in frame.
+         */
     Polymer({
       is: 'ascii-animation',
 
@@ -62,14 +72,77 @@ Example:
          */
         bounce: Boolean,
         /**
-         * Describes the author of the element, but is really just an excuse to
-         * show off JSDoc annotations.
-         *
-         * @type {{name: string, image: string}}
+         * `running` is true when the animation is currently playing.
          */
+        running: {
+          type: Boolean,
+          notify: true,
+          value: false
+        },
+        /**
+         * array of keyframes either from `<ascii-animation-keyframe>` elements in the content
+         * or can be set programmatically.
+         * @type Array.{Keyframe}
+         */
+        keyframes: {
+          type: Array,
+          notify: true,
+          value: function() {
+            // this needs to get the keyframes from the content.
+            return [];
+          }
+        },
+        // private
+        /**
+         * `_renderedText` contains all the frames rendered into one string with proper padding for rows and cols.
+         */
+        _renderedText: {
+          type: String,
+          notify: true
+        },
+        /**
+         * `_charCols` stores the number of columns in the longest line of any keyframe.
+         * all lines in all frames will be padded to this value when generating _renderedText
+         */
+        _charCols: {
+          type: Number,
+          notify: true,
+          value: 0
+        },
+        /**
+        * `_charRows` stores the highest number of rows in any keyframe.
+        * all frames are then padded to this value when generating _renderedText
+        */
+        _charRows: {
+          type: Number,
+          notify: true,
+          value: 0
+        },
+        /**
+         * `_keyFramePositions` is a simplified array of all the selectors in the provided keyframes
+         * example: if there are keyframes for 0, 33, 66, and 100, the array will be
+         * [0,33,66,100]
+         */
+        _keyFramePositions: {
+          type: Array
+        },
+        /**
+         * `_handle` is the current async handle so pause and stop can cancel it.
+         */
+        _handle: {
+          type: Object
+        },
+        /**
+         * `_ready` set after ready event fires
+         */
+        _ready: Boolean,
+        /**
+         * `_attached` set after attached event fires
+         */
+        _attached: Boolean
 
       },
-
+      observers: ['_keyFramesChanged(keyframes.*)'],
       // Element Lifecycle
 
       ready: function () {
@@ -79,6 +152,7 @@ Example:
         //
         // This is the point where you should make modifications to the DOM (when
         // necessary), or kick off any processes the element wants to perform.
+        this._ready = true;
       },
 
       attached: function () {
@@ -88,18 +162,85 @@ Example:
         // This is a good place to perform any work related to your element's
         // visual state or active behavior (measuring sizes, beginning animations,
         // loading resources, etc).
+        this._attached = true;
       },
+      
 
       detached: function () {
         // The analog to `attached`, `detached` fires when the element has been
         // removed from a document.
         //
         // Use this to clean up anything you did in `attached`.
+        this._attached = false;
       },
 
       // Element Behavior
+      /**
+       * Updates `_renderedText` when keyframe array changes.
+       * Populates `_keyFramePositons`
+       * Then sets `_charCols` and `_charRows` and then ascii-view dimensions
+       */
+      _keyFramesChanged: function (changeRecord) {
+        // abort for 0 keyframes.
+        if (this.keyframes == null || this.keyframes.length < 1) {
+          return;
+        }
+        // for each keyframe:        
+        var maxWidth = 0;
+        var maxLines = 0;
+        var keyFrames = this.keyframes;
+        this._keyFramePositions = [];
+        this._lastFramePercent = 0;
+        var frames = keyFrames.length;
+        // first loop gets dimensions of everything.
+        for (var k = 0; k < keyFrames.length; k++) {
+          // split each frame content into lines
+          var lines = keyFrames[k].display.split(/\n/);
+          this._keyFramePositions.push(keyFrames[k].selector);
+          // grab the number of lines in the longest element.
+          if (maxLines < lines.length) {
+            maxLines = lines.length;
+          }
+          // grab the number of chars in the longest line.
+          for (var l = 0; l < lines.length; l++) {
+            // find maximum width
+            if (maxWidth < lines[l].length) {
+              maxWidth = lines[l].length;
+            }
+          }
+        }
+        var frames = [];
+        for (var k = 0; k < keyFrames.length; k++) {
+          var frame = [];
+          var lines = keyFrames[k].display.split(/\n/);
+          for (var l = 0; l < lines.length; l++) {
+            // add each line with padding to frame.
+            frame.push(this._rightPad(lines[l], ' ', maxWidth));
+          }
+          // pad with blank lines
+          var blankLinesNeeded = maxLines - frame.length;
+          for (var b = 0; b < blankLinesNeeded; b++) {
+            frame.push(this._rightPad('', ' ', maxWidth));
+          }
+          frames.push(frame);
+        }
+        var renderBuffer = '';
+        // now render the text into one continuous block by line with a fixed width.
+        for (var l = 0; l < lines.length; l++) {
+          for (var f = 0; f < frames.length; f++) {
+            renderBuffer += frames[f][l];
+          }
+          renderBuffer += "\n";
+        }
+        this.set('_renderedText', renderBuffer);
+        this._charCols = maxWidth;
+        this._charRows = maxLines;
+        this.$['ascii-view'].style.width = this._charCols + 'ch';
+        this.$['ascii-view'].style.height;
+        this._charRows + 'ch';
+      },
 
-     
+
     });
   </script>
 </dom-module>

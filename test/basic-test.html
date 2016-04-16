@@ -26,8 +26,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <!-- You can use the document as a place to set up your fixtures. -->
   <test-fixture id="ascii-animation-fixture">
     <template>
-      <ascii-animation>
-        <h2>ascii-animation</h2>
+      <ascii-animation duration="1" autoplay bounce loop>
+        <ascii-animation-keyframe name="smiley" selector="0">:)</ascii-animation-keyframe>
+        <ascii-animation-keyframe name="meh" selector="50">:|</ascii-animation-keyframe>
+        <ascii-animation-keyframe name="frownie" selector="100">:(</ascii-animation-keyframe>
       </ascii-animation>
     </template>
   </test-fixture>
@@ -39,32 +41,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       setup(function () {
         myEl = fixture('ascii-animation-fixture');
-      });
-
-      test('defines the "author" property', function () {
-        assert.equal(myEl.author.name, 'Dimitri Glazkov');
-        assert.equal(myEl.author.image, 'http://addyosmani.com/blog/wp-content/uploads/2013/04/unicorn.jpg');
-      });
-
-      test('says hello', function () {
-        assert.equal(myEl.sayHello(), 'ascii-animation says, Hello World!');
-
-        var greetings = myEl.sayHello('greetings Earthlings');
-        assert.equal(greetings, 'ascii-animation says, greetings Earthlings');
-      });
-
-      test('fires lasers', function (done) {
-        myEl.addEventListener('ascii-animation-lasers', function (event) {
-          assert.equal(event.detail.sound, 'Pew pew!');
-          done();
-        });
-        myEl.fireLasers();
-      });
-
-      test('distributed children', function () {
-        var els = myEl.getContentChildren();
-        assert.equal(els.length, 1, 'one distributed node');
-        assert.equal(els[0], myEl.querySelector('h2'), 'content distributed correctly');
       });
 
     });
