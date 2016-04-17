@@ -110,6 +110,13 @@ Example:
           type: Number,
           value: 100
         },
+        /** 
+         * duration of animation in seconds
+         */
+        duration: {
+          type: Number,
+          value: 1
+        },
         // private
         /**
          * `_renderedText` contains all the frames rendered into one string with proper padding for rows and cols.
@@ -164,7 +171,15 @@ Example:
         _percent: {
           type: Number,
           notify: true,
+          value: 0,
           observer: '_percentChanged'
+        },
+        /** 
+         * used during the loop to store the value
+         */
+        _newPercent: {
+          type: Number,
+          value: 0
         }
       },
       observers: ['_keyFramesChanged(keyframes.*)'],
@@ -196,8 +211,10 @@ Example:
             "selector": keyFrames[k].selector,
             "display": keyFrames[k].display
           };
+          // deliberately avoiding `this.push()` so we don't update the text render until all frames are added.
           this.keyframes.push(kf);
         }
+        // setting this after the keyframe add loop so any attempts to render from the for loop won't fire since it checks the `_attached`s property.
         this._attached = true;
         // this should cause the the _keyFramesChanged observer to fire properly.
         this.notifySplices('keyframes', [{
@@ -207,6 +224,9 @@ Example:
           "object": this.keyframes,
           "type": 'splice'
            }]);
+        if (this.autoplay) {
+          this.play();
+        }
       },
 
 
@@ -223,10 +243,18 @@ Example:
        * Runs the animation from the current `_percent` position.
        */
       play: function () {
+        console.log('play');
         this.running = true;
+        if (!this.bounce && this._percent == this.outPoint) {
+          // start from beginning
+          this._runLoop(this.inPoint);
+        } else {
+          // resume
+          this._runLoop(this._percent);
+        }
       },
       /**
-       * Sets the running state to false but keeps position
+       * Sets the running state to false but keeps position at least to last keyframe.
        */
       pause: function () {
         this.cancelAsync(this._handle);
@@ -236,11 +264,12 @@ Example:
        * Pauses and then sets the animation back to beginning (`inPoint`)
        */
       stop: function () {
+        console.log('stop');
         this.pause();
         this._percent = this.inPoint;
       },
       /** 
-       * Sets animation `_percert` back to beginning (`inPoint`), does not affect `running` state
+       * Sets animation `_percent` back to beginning (`inPoint`), does not affect `running` state
        */
       first: function () {
         this._percent = this.inPoint;
@@ -265,6 +294,100 @@ Example:
        */
       _percentChanged: function (newVal, oldVal) {
 
+      },
+      /** 
+       * Main loop that triggers the _percent value to move and then sets the next async call 
+       * @return {boolean} true if running
+       */
+      _runLoop: function () {
+        var newPercent = this._newPercent;
+        console.log('_runLoop at ' + newPercent + '%');
+        // don't run this code if element state is not running
+        if (!this.running) {
+          return false;
+        }
+        // make sure _percentChange observer runs to update the frame.
+        this.set('_percent', newPercent);
+        // after the frame update figure out the next frame and set the loop.
+        // first, we try the easy way, ++ or -- the keyframe position index
+        var currentIndex = this._keyFramePositions.indexOf(newPercent);
+        var endOfAnimation = false;
+        // we will change these values later on, just need something defined and not 0.
+        var nextPercent = -1;
+        var nextIndex = -1;
+
+        if (currentIndex >= 0) {
+          nextIndex = this.reverse ? currentIndex - 1 : currentIndex + 1;
+          // validate our assumption - we could be at the start or end of the array.
+          if (nextIndex >= 0 && nextIndex < this._keyFramePositions.length) {
+            // everything went as well as could be expected
+            nextPercent = this._keyFramePositions[nextIndex];
+          } else {
+            // next index will be out of bounds of the _keyFramePositions array so we must be done
+            endOfAnimation = true;
+          }
+        } else {
+          // this is where we hit some complexity to find the closest next index 
+          // and also show the frame before so fine the last index but set the time differently
+          var lowestOffset = null;
+          var kfpLength = this._keyFramePositions.length; // just grab this once.
+          for (var k; k < kfpLength; k++) {
+            if (
+              ((!this.reverse && this._keyFramePositions[k] > newPercent) ||
+                (this.reverse && this._keyFramePositions[k] < newPercent))
+            ) {
+              var absOffset = Math.abs(newPercent - this._keyFramePositions[k]);
+              if (lowestOffset == null || absOffset < lowestOffset) {
+                lowestOffset = absOffset;
+                nextPercent = this._keyFramePositions[k];
+                nextIndex = k;
+              }
+            }
+          }
+        }
+        var scale = 100 // todo: use scale multiplier if we are going to allow more than 100 frames.
+          // this is the percent to multiply the total delay to arrive at the next frame on time.
+          // setting this now because we may override it if the animation loops            
+        var delayPercent = Math.abs(nextPercent - newPercent);
+        // validate that the next percent is within our in and out points. We should have some sort of proposed value by now.
+        if (!(nextPercent >= this.inPoint && nextPercent <= this.outPoint)) {
+          endOfAnimation = true;
+        }
+        // handle end of animation
+        if (endOfAnimation) {
+          // so we can check for a flip on a bounce.
+          var newInpoint = this.inPoint;
+          var currentOutpoint = this.outPoint;
+          if (this.bounce) {
+            // if we are in bounce mode we'll flip the direction
+            // can't promise the change handler will do this yet so let's set the right inpoint.
+            newInpoint = this.outPoint;
+            this.set('reverse', !this.reverse);
+          }
+          // if we are not looping then we have to stop.
+          if (!this.loop) {
+            this.running = false;
+          } else {
+            // set up the next percent based on the loop.
+            nextPercent = newInpoint;
+            if (newPercent == currentOutpoint) {
+              // we are at the end and we need to loop right away
+              delayPercent = 0;
+            } else {
+              // we may be at 80%, out is at 100% and we're going to loop to 0. So we still need to wait.
+              delayPercent = Math.abs(currentOutpoint - newPercent);
+            }
+          }
+        }
+        this._newPercent = nextPercent;
+        // only if running still do we set up the next async call.
+        if (this.running) {
+
+          var delay = (this.duration * 1000) * (delayPercent / scale);
+          console.log('next step is ' + nextPercent + ' in ' + delay + 'ms');
+          this.set('_handle', this.async(this._runLoop, delay));
+        }
+        return this.running;
       },
       /**
        * swaps `inPoint` and `outPoint` when the value of reverse is set.
@@ -310,7 +433,8 @@ Example:
             return;
           }
           var lines = keyFrames[k].display.split(/\n/);
-          this._keyFramePositions.push(keyFrames[k].selector);
+          // we populate `_keyFramePositions` from this loop.
+          this.push('_keyFramePositions', keyFrames[k].selector);
           // grab the number of lines in the longest element.
           if (maxLines < lines.length) {
             maxLines = lines.length;
@@ -324,6 +448,7 @@ Example:
           }
         }
         var frames = [];
+        // now that we have the max values we can loop again to set padding.
         for (var k = 0; k < keyFrames.length; k++) {
           var frame = [];
           var lines = keyFrames[k].display.split(/\n/);
@@ -346,6 +471,7 @@ Example:
           }
           renderBuffer += "\n";
         }
+        // update the element property only once with the complete render from the buffer.
         this.set('_renderedText', renderBuffer);
         this._charCols = maxWidth;
         this._charRows = maxLines;

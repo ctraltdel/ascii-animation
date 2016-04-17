@@ -19,27 +19,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <body unresolved>
 
     <p>An example of <code>&lt;ascii-animation&gt;</code>:</p>
-
-    <p>Make words! <button id="saybtn">Say Something</button></p>
-    <p>Make lasers! <button id="laserbtn">Fire lasers</button></p>
-
-    <ascii-animation author='{"name": "Lord Meowser", "image": "http://lorempixel.com/g/300/200/cats/"}' fancy>
-      <h2>Hello ascii-animation</h2>
+    <ascii-animation duration="10"  >
+      <ascii-animation-keyframe name="smiley" selector="0">:)</ascii-animation-keyframe>
+      <ascii-animation-keyframe name="meh" selector="50">:|</ascii-animation-keyframe>
+      <ascii-animation-keyframe name="frownie" selector="100">:(</ascii-animation-keyframe>
     </ascii-animation>
-
+    <input type="button" id="play" value="play" />
+    <input type="button" id="stop" value="stop" />
     <script>
       var seedElement = document.querySelector('ascii-animation');
 
-      document.querySelector('#saybtn').addEventListener('click', function() {
-        alert(seedElement.sayHello('Hallo!'));
+      document.querySelector('#play').addEventListener('click', function() {
+        seedElement.play();
       });
 
-      document.querySelector('#laserbtn').addEventListener('click', function() {
-        seedElement.fireLasers();
-      });
-
-      document.addEventListener("ascii-animation-lasers", function(e) {
-        console.log(e.detail.sound);
+      document.querySelector('#stop').addEventListener('click', function() {
+        seedElement.stop();
       });
 
     </script>
