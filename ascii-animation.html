@@ -34,6 +34,20 @@ Example:
         display: block;
         box-sizing: border-box;
       }
+      
+      #ascii-view {
+        font-family: monospace;
+        margin: 0;
+        padding: 0;
+        white-space: pre;
+        overflow: hidden;
+        position: relative;
+      }
+      
+      #ascii-content {
+        width: 0ch;
+        position: relative;
+      }
     </style>
     <div id="ascii-view">
       <div id="ascii-content">[[_renderedText]]</div>
@@ -293,7 +307,17 @@ Example:
        * to update the frame (maybe)
        */
       _percentChanged: function (newVal, oldVal) {
-
+        if (this._keyFramePositions != undefined && this._attached && newVal != undefined) {
+          var frameIndex = this._keyFramePositions.indexOf(newVal);
+          console.log("index of val " + this._keyFramePositions.indexOf(newVal));
+          if (frameIndex > -1) {
+            console.log('showing frame ' + frameIndex);
+            this._showFrame(frameIndex);
+          }
+        }
+        else {
+          console.log(this._keyFramePositions);
+        }
       },
       /** 
        * Main loop that triggers the _percent value to move and then sets the next async call 
@@ -307,6 +331,7 @@ Example:
           return false;
         }
         // make sure _percentChange observer runs to update the frame.
+        console.log('setting percent to ' + newPercent);
         this.set('_percent', newPercent);
         // after the frame update figure out the next frame and set the loop.
         // first, we try the easy way, ++ or -- the keyframe position index
@@ -478,6 +503,10 @@ Example:
         this.$['ascii-view'].style.width = this._charCols + 'ch';
         this.$['ascii-view'].style.height;
         this._charRows + 'ch';
+      },
+      _showFrame: function (frameIndex) {
+        console.log(this.$['ascii-content'].style.left);
+        this.$$('#ascii-content').style.left = "-" + this._charCols * frameIndex + "ch";
       },
       /** 
        * Utility function used for text rendering. Not a node package.
