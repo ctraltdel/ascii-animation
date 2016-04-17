@@ -9,7 +9,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 
 <link rel="import" href="../polymer/polymer.html">
-
+<link rel="import" href="ascii-animation-keyframe.html">
 <!--
 An element to provide a way to animate ascii text. Animation is keyframe based. 
 
@@ -36,7 +36,7 @@ Example:
       }
     </style>
     <div id="ascii-view">
-        <div id="ascii-content">[[_renderedText]]</div>
+      <div id="ascii-content">[[_renderedText]]</div>
     </div>
     <div id="keyframe-content" hidden>
       <content></content>
@@ -44,11 +44,11 @@ Example:
   </template>
 
   <script>
-        /* @typedef {Object} Keyframe
-         *   @property {number} selector - 0 to 100 percentage of animation where keyframe is shown.
-         *   @property {string} name - name of frame for organizational reasons
-         *   @property {stirng} display - ascii text to be displayed in frame.
-         */
+    /* @typedef {Object} Keyframe
+     *   @property {number} selector - 0 to 100 percentage of animation where keyframe is shown.
+     *   @property {string} name - name of frame for organizational reasons
+     *   @property {stirng} display - ascii text to be displayed in frame.
+     */
     Polymer({
       is: 'ascii-animation',
 
@@ -65,7 +65,11 @@ Example:
         /**
          * `reverse` indicates that playback should be backwards.
          */
-        reverse: Boolean,
+        reverse: {
+          type: Boolean,
+          notify: true,
+          observer: '_directionChanged'
+        },
         /** 
          * `bounce` indicates playback should alternate between forwards and reverse.
          * can be used a long with loop.
@@ -87,10 +91,24 @@ Example:
         keyframes: {
           type: Array,
           notify: true,
-          value: function() {
+          value: function () {
             // this needs to get the keyframes from the content.
             return [];
           }
+        },
+        /**
+         * 0-100 starting point of animation, default is 0
+         */
+        inPoint: {
+          type: Number,
+          value: 0
+        },
+        /**
+         * 0-100 ending point of animation
+         */
+        outPoint: {
+          type: Number,
+          value: 100
         },
         // private
         /**
@@ -110,9 +128,9 @@ Example:
           value: 0
         },
         /**
-        * `_charRows` stores the highest number of rows in any keyframe.
-        * all frames are then padded to this value when generating _renderedText
-        */
+         * `_charRows` stores the highest number of rows in any keyframe.
+         * all frames are then padded to this value when generating _renderedText
+         */
         _charRows: {
           type: Number,
           notify: true,
@@ -139,8 +157,15 @@ Example:
         /**
          * `_attached` set after attached event fires
          */
-        _attached: Boolean
-
+        _attached: Boolean,
+        /**
+         * `_percent` is the current position of the play head from 0 - 100
+         */
+        _percent: {
+          type: Number,
+          notify: true,
+          observer: '_percentChanged'
+        }
       },
       observers: ['_keyFramesChanged(keyframes.*)'],
       // Element Lifecycle
@@ -157,14 +182,33 @@ Example:
 
       attached: function () {
         // `attached` fires once the element and its parents have been inserted
-        // into a document.
-        //
-        // This is a good place to perform any work related to your element's
-        // visual state or active behavior (measuring sizes, beginning animations,
-        // loading resources, etc).
+        // into a document. This is where keyframes are populated from the element's content
+        // if they are already defined the ones in content will be pushed to the end of the array.
+        // get keyframes from content        
+        var keyFrames = this.querySelectorAll('ascii-animation-keyframe');
+        //var keyFrames = Polymer.dom(this).getEffectiveChildren(); ?
+        // vars for manual notification
+        var startIndex = keyFrames.length != undefined ? keyFrames.length + 1 : 0;
+        var addedCount = 0;
+        for (var k = 0; k < keyFrames.length; k++) {
+          var kf = {
+            "name": keyFrames[k].name,
+            "selector": keyFrames[k].selector,
+            "display": keyFrames[k].display
+          };
+          this.keyframes.push(kf);
+        }
         this._attached = true;
+        // this should cause the the _keyFramesChanged observer to fire properly.
+        this.notifySplices('keyframes', [{
+          "index": startIndex,
+          "removed": [],
+          "addedCount": addedCount,
+          "object": this.keyframes,
+          "type": 'splice'
+           }]);
       },
-      
+
 
       detached: function () {
         // The analog to `attached`, `detached` fires when the element has been
@@ -176,13 +220,75 @@ Example:
 
       // Element Behavior
       /**
+       * Runs the animation from the current `_percent` position.
+       */
+      play: function () {
+        this.running = true;
+      },
+      /**
+       * Sets the running state to false but keeps position
+       */
+      pause: function () {
+        this.cancelAsync(this._handle);
+        this.running = false;
+      },
+      /**
+       * Pauses and then sets the animation back to beginning (`inPoint`)
+       */
+      stop: function () {
+        this.pause();
+        this._percent = this.inPoint;
+      },
+      /** 
+       * Sets animation `_percert` back to beginning (`inPoint`), does not affect `running` state
+       */
+      first: function () {
+        this._percent = this.inPoint;
+      },
+      /**
+       * Sets the animation `_percent` to the end (`outPoint`), does not affect `running` state
+       */
+      last: function () {
+        this._percent = this.outPoint;
+      },
+      /** 
+       * Moves `_percent` position to the next keyframe
+       */
+      skipForward: function () {},
+      /**
+       * Moves `_percent` position to the previous keyframe
+       */
+      skipBack: function () {},
+      /**
+       * `_percent` observer, meaning the position in the animation changed so we need
+       * to update the frame (maybe)
+       */
+      _percentChanged: function (newVal, oldVal) {
+
+      },
+      /**
+       * swaps `inPoint` and `outPoint` when the value of reverse is set.
+       * sanity checks direction in case it gets called at a weird time, like from 
+       * undefined to true.
+       */
+      _directionChanged: function (newVal, oldVal) {
+        var oldIn = this.inPoint;
+        var oldOut = this.outPoint;
+        // sanity check before swapping
+        // if reversed then inpoint > outpoint or not reversed and inpoint < outpoint
+        if ((newVal && oldOut > oldIn) || (!newVal && oldOut < oldIn)) {
+          this.set('inPoint', oldOut);
+          this.set('outPoint', oldIn);
+        }
+      },
+      /**
        * Updates `_renderedText` when keyframe array changes.
        * Populates `_keyFramePositons`
        * Then sets `_charCols` and `_charRows` and then ascii-view dimensions
        */
       _keyFramesChanged: function (changeRecord) {
         // abort for 0 keyframes.
-        if (this.keyframes == null || this.keyframes.length < 1) {
+        if (this.keyframes == null || this.keyframes.length < 1 || !this._attached) {
           return;
         }
         // for each keyframe:        
@@ -192,9 +298,17 @@ Example:
         this._keyFramePositions = [];
         this._lastFramePercent = 0;
         var frames = keyFrames.length;
+
         // first loop gets dimensions of everything.
         for (var k = 0; k < keyFrames.length; k++) {
           // split each frame content into lines
+          if (keyFrames == undefined || keyFrames[k].selector == undefined || keyFrames[k].display == undefined) {
+            if (console.error) {
+              console.error('Error: render aborted due to invalid keyframe ' + k + ' ' + JSON.stringify(keyFrames[k]));
+            }
+            this._renderedText = '';
+            return;
+          }
           var lines = keyFrames[k].display.split(/\n/);
           this._keyFramePositions.push(keyFrames[k].selector);
           // grab the number of lines in the longest element.
@@ -239,8 +353,20 @@ Example:
         this.$['ascii-view'].style.height;
         this._charRows + 'ch';
       },
-
-
+      /** 
+       * Utility function used for text rendering. Not a node package.
+       * shoutout to: https://eureka.ykyuen.info/2011/08/23/javascript-leftright-pad-a-string/
+       */
+      _rightPad: function (s, c, n) {
+        if (!s || !c || s.length >= n) {
+          return s;
+        }
+        var max = (n - s.length) / c.length;
+        for (var i = 0; i < max; i++) {
+          s += c;
+        }
+        return s;
+      }
     });
   </script>
 </dom-module>
