@@ -61,7 +61,7 @@ Example:
     /* @typedef {Object} Keyframe
      *   @property {number} selector - 0 to 100 percentage of animation where keyframe is shown.
      *   @property {string} name - name of frame for organizational reasons
-     *   @property {stirng} display - ascii text to be displayed in frame.
+     *   @property {string} display - ascii text to be displayed in frame.
      */
     Polymer({
       is: 'ascii-animation',
@@ -302,6 +302,34 @@ Example:
        * Moves `_percent` position to the previous keyframe
        */
       skipBack: function () {},
+      /** 
+       * Sets an in or out point to the name of a keyframe
+       * @param {string} trimType - either 'in' or 'out'
+       * @param {string} keyFrameName - name of a keyframe.
+       * @return {Boolean} true if successful
+       */
+      setTrim: function (trimType, keyFrameName) {
+        if (trimType != 'in' && trimType != 'out') {
+          if (console.error) {
+            console.error('Error: ascii-animation.setTrim() trimType \'' + trimType + '\' must be either \'in\' or \'out\'');
+          }
+          return false;
+        }
+        for (var k = 0; k < this.keyframes; k++) {
+          if (this.keyframes[k].name == keyFrameName) {
+            switch (trimType) {
+            case 'in':
+              this.inPoint = this.keyframes[k].selector;
+              break;
+            case 'out':
+              this.outPoint = this.keyframes[k].selector;
+              break;
+            }
+            return true;
+          }
+        }
+        return false;
+      },
       /**
        * `_percent` observer, meaning the position in the animation changed so we need
        * to update the frame (maybe)
@@ -314,8 +342,7 @@ Example:
             console.log('showing frame ' + frameIndex);
             this._showFrame(frameIndex);
           }
-        }
-        else {
+        } else {
           console.log(this._keyFramePositions);
         }
       },
