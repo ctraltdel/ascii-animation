@@ -301,7 +301,21 @@ Example:
       /**
        * Moves `_percent` position to the previous keyframe
        */
-      skipBack: function () {},
+      skipBack: function () {
+        
+      },
+      /** 
+       * Moves to a `_percent` position by keyframe name
+       * @return {Boolean} true if frame found, false if not.
+       */
+      skipTo: function(keyFrameName) {
+        var newPos = this._getKeyFrameSelectorFromName(keyFrameName);
+        if (newPos != undefined) { 
+          this._percent = newPos;
+          return true;
+        }
+        return false;
+      },
       /** 
        * Sets an in or out point to the name of a keyframe
        * @param {string} trimType - either 'in' or 'out'
@@ -315,6 +329,7 @@ Example:
           }
           return false;
         }
+        // todo: use _getKeyFrameSelectorFromName()
         for (var k = 0; k < this.keyframes; k++) {
           if (this.keyframes[k].name == keyFrameName) {
             switch (trimType) {
@@ -329,6 +344,14 @@ Example:
           }
         }
         return false;
+      },
+      _getKeyFrameSelectorFromName: function(keyFrameName) {
+         for (var k = 0; k < this.keyframes; k++) {
+           if (this.keyframes[k].name == keyFrameName) {
+             return this.keyframes[k].selector;
+           }
+         }
+         return undefined;
       },
       /**
        * `_percent` observer, meaning the position in the animation changed so we need
@@ -447,6 +470,7 @@ Example:
        * undefined to true.
        */
       _directionChanged: function (newVal, oldVal) {
+        if (newVal == undefined) { return; }
         var oldIn = this.inPoint;
         var oldOut = this.outPoint;
         // sanity check before swapping
@@ -499,6 +523,10 @@ Example:
             }
           }
         }
+        // sort keyframe positions by number
+        this._keyFramePositions.sort(function(a, b) {
+          return a - b;
+        });
         var frames = [];
         // now that we have the max values we can loop again to set padding.
         for (var k = 0; k < keyFrames.length; k++) {

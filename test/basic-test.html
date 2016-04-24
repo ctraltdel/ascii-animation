@@ -42,12 +42,35 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       setup(function () {
         myEl = fixture('ascii-animation-fixture');
       });
+      test('autoplay property', function() {
+        assert.equal(myEl.autoplay,true);
+      });
+      test('bounce property', function() {
+        assert.equal(myEl.bounce,true);
+      });
+      test('loop property', function() {
+        assert.equal(myEl.loop,true);
+      });
+      test('reverse and _directionChanged', function() {
+        var orgIn = myEl.inPoint;
+        var orgOut = myEl.outPoint;
+        myEl.reverse = true;
+        assert.equal(myEl.reverse,true);
+        assert.equal(myEl.inPoint, orgOut);
+        assert.equal(myEl.outPoint, orgIn);        
+      })
       test('makes sure attached function find children keyframes',function() {
         assert.equal(myEl.keyframes.length,3);
       });
       test('make sure rendered text is as expected', function() {
         assert.equal(myEl._renderedText, ':):|:(\n');
       })
+      test('add a keyframe', function() {        
+        myEl.push('keyframes',{selector: 75, display: ':-X','name':"X face"});
+        assert.equal(myEl.keyframes.length,4);
+        assert.equal(myEl._charCols,3);
+        assert.deepEqual(myEl._keyFramePositions,[0,50,75,100]);
+      });
     });
   </script>
 
